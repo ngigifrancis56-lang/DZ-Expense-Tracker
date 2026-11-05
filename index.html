@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10251f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Car Profit">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Car Profit Tracker</title>
+<style>
+:root{--bg:#f3f6f4;--card:#fff;--ink:#17231e;--muted:#6b7771;--line:#e3e9e5;--green:#147d53;--red:#c23d3d;--navy:#10251f;--soft:#eaf5ef}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:88px}
+header{background:var(--navy);color:#fff;padding:22px 18px 20px;border-radius:0 0 22px 22px}
+.headrow{display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{font-size:20px;font-weight:800;letter-spacing:-.4px}.sub{color:#c2d5cb;font-size:12px;margin-top:4px}
+main{max-width:760px;margin:auto;padding:16px}
+h2{font-size:17px;margin:4px 0 12px}.section{margin:18px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;box-shadow:0 2px 8px #14251a08}
+.metric-label{font-size:12px;color:var(--muted)}.metric{font-size:23px;font-weight:800;margin-top:6px;letter-spacing:-.5px}.positive{color:var(--green)}.negative{color:var(--red)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.toolbar select{flex:1;min-width:145px}
+button,.btn{border:0;border-radius:11px;padding:12px 14px;background:var(--green);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+button.secondary{background:#eaf0ec;color:#20342a}button.danger{background:#fff0f0;color:var(--red)}button.small{padding:8px 10px;font-size:12px}
+input,select,textarea{width:100%;border:1px solid #d8e1db;border-radius:10px;padding:12px;background:#fff;color:var(--ink);font:inherit;min-height:44px}
+label{display:block;font-size:12px;color:var(--muted);font-weight:650;margin:10px 0 5px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.full{grid-column:1/-1}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:5}
+.tabs button{background:transparent;color:#69766f;padding:8px 5px;flex:1;font-size:11px}.tabs button.active{color:var(--green);background:var(--soft)}
+.panel{display:none}.panel.active{display:block}
+.rowitem{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}.rowitem:last-child{border:0}
+.itemtitle{font-weight:700}.itemmeta{font-size:12px;color:var(--muted);margin-top:4px}.amount{font-weight:800;white-space:nowrap}
+.pill{display:inline-block;border-radius:20px;padding:4px 8px;background:#eef3ef;color:#53635a;font-size:11px}
+.empty{padding:22px;text-align:center;color:var(--muted);font-size:13px}
+.note{font-size:12px;color:var(--muted);line-height:1.5}.hidden{display:none!important}
+#toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%);background:#172b22;color:#fff;padding:10px 15px;border-radius:10px;display:none;z-index:9;font-size:13px}
+@media(min-width:600px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.formgrid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="headrow"><div><div class="brand">🚗 Car Profit Tracker</div><div class="sub">Your fleet income, costs & profit · KES</div></div><span class="pill" style="background:#244638;color:#d8eee2">Private on this device</span></div></header>
+<main>
+<section id="dashboard" class="panel active">
+ <div class="section toolbar"><select id="dashVehicle"><option value="all">All vehicles</option></select><select id="dashPeriod"><option value="today">Today</option><option value="week" selected>This week</option><option value="month">This month</option><option value="all">All time</option></select></div>
+ <div class="grid">
+  <div class="card"><div class="metric-label">Total income</div><div class="metric" id="mIncome">KES 0</div></div>
+  <div class="card"><div class="metric-label">Total costs</div><div class="metric" id="mCosts">KES 0</div></div>
+  <div class="card"><div class="metric-label">Net profit</div><div class="metric" id="mProfit">KES 0</div></div>
+  <div class="card"><div class="metric-label">Trips recorded</div><div class="metric" id="mTrips">0</div></div>
+ </div>
+ <div class="section card"><h2>Profit overview</h2><div id="overview" class="note">Add trips and costs to see your results.</div></div>
+ <div class="section card"><h2>Cargo carried in selected period</h2><div id="cargoSummary" class="note">Cargo totals will appear here when you record trips.</div></div>
+ <div class="section card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Recent activity</h2><button class="small secondary" onclick="showTab('records')">View all</button></div><div id="recent"></div></div>
+</section>
+
+<section id="trips" class="panel">
+ <div class="section card"><h2>Record a trip / income</h2>
+ <form id="tripForm"><div class="formgrid">
+  <div class="full"><label>Vehicle</label><select id="tripVehicle" required></select></div>
+  <div><label>Date</label><input id="tripDate" type="date" required></div><div><label>Income (KES)</label><input id="tripIncome" type="number" min="0" step="0.01" placeholder="e.g. 8500" required></div>
+  <div class="full"><label>Trip / route description</label><input id="tripDesc" placeholder="e.g. Nairobi to Nakuru"></div>
+  <div><label>Material carried</label><select id="tripCargo"><option>Sand</option><option>Ballast</option><option>Murram</option><option>Stones</option><option>General dumping</option><option>Hardcore</option><option>Soil / Topsoil</option><option>Quarry dust</option><option>Building rubble</option><option>Gravel</option><option>Other</option></select></div>
+  <div><label>Quantity / loads</label><input id="tripQuantity" type="number" min="0" step="0.1" placeholder="e.g. 1"></div>
+  <div><label>Unit</label><select id="tripUnit"><option>Load</option><option>Trip</option><option>Tonnes</option><option>m³</option><option>Wheelbarrows</option><option>Other</option></select></div>
+  <div><label>Customer name</label><input id="tripCustomer" placeholder="Who hired the truck?"></div><div><label>Delivery site / destination</label><input id="tripSite" placeholder="e.g. Ruiru construction site"></div>
+  <div><label>Fuel for this trip (KES)</label><input id="tripFuel" type="number" min="0" step="0.01" value="0"></div><div><label>Other trip cost (KES)</label><input id="tripOther" type="number" min="0" step="0.01" value="0"></div>
+  <div><label>Distance (km) · optional</label><input id="tripKm" type="number" min="0" step="0.1" placeholder="0"></div><div class="full"><label>Notes / additional information · optional</label><textarea id="tripNote" rows="4" placeholder="e.g. Client paid a deposit; truck returned empty; extra loading charges..."></textarea></div>
+ </div><button style="width:100%;margin-top:14px">Save trip</button></form></div>
+</section>
+
+<section id="costs" class="panel">
+ <div class="section card"><h2>Add vehicle expense</h2>
+ <form id="costForm"><div class="formgrid">
+  <div class="full"><label>Vehicle</label><select id="costVehicle" required></select></div>
+  <div><label>Date</label><input id="costDate" type="date" required></div><div><label>Amount (KES)</label><input id="costAmount" type="number" min="0.01" step="0.01" required placeholder="e.g. 2500"></div>
+  <div class="full"><label>Expense category</label><select id="costCategory"><option>Fuel</option><option>Repairs & maintenance</option><option>Tyres</option><option>Parking</option><option>Insurance</option><option>Licences & permits</option><option>Cleaning</option><option>Other</option></select></div>
+  <div class="full"><label>Description / notes</label><input id="costDesc" placeholder="What was this expense for?"></div>
+ </div><button style="width:100%;margin-top:14px">Save expense</button></form></div>
+ <div class="section card"><h2>Pay driver (weekly)</h2><form id="driverForm"><div class="formgrid">
+  <div class="full"><label>Vehicle</label><select id="driverVehicle" required></select></div>
+  <div><label>Payment date</label><input id="driverDate" type="date" required></div><div><label>Weekly payment (KES)</label><input id="driverAmount" type="number" min="0.01" step="0.01" required></div>
+  <div><label>Week starts</label><input id="weekStart" type="date"></div><div><label>Week ends</label><input id="weekEnd" type="date"></div>
+  <div class="full"><label>Driver / notes</label><input id="driverNote" placeholder="Driver name or payment details"></div>
+ </div><button style="width:100%;margin-top:14px">Save driver payment</button></form></div>
+</section>
+
+<section id="fleet" class="panel">
+ <div class="section card"><h2>Add a vehicle</h2><form id="vehicleForm"><label>Vehicle name / registration</label><input id="vehicleName" required placeholder="e.g. KDA 123A · Toyota Probox"><label>Optional details</label><input id="vehicleDetails" placeholder="Make, model, year"><button style="width:100%;margin-top:14px">Add vehicle</button></form></div>
+ <div class="section card"><h2>Your vehicles</h2><div id="vehicleList"></div></div>
+</section>
+
+<section id="records" class="panel">
+ <div class="section toolbar"><select id="recordFilter"><option value="all">All vehicles</option></select><button class="secondary" onclick="exportCSV()">Export CSV</button></div>
+ <div class="card"><h2>All records</h2><div id="recordList"></div></div>
+ <div class="section card"><h2>Backup & restore</h2><p class="note">Your records are saved in this browser on this iPhone. Export a backup regularly so you do not lose your data.</p><div class="toolbar"><button class="secondary" onclick="backupData()">Download backup</button><label class="btn secondary" style="margin:0;display:inline-flex;align-items:center">Restore backup<input type="file" accept="application/json" onchange="restoreData(event)" style="display:none"></label></div></div>
+</section>
+</main>
+<nav class="tabs">
+<button class="active" data-tab="dashboard" onclick="showTab('dashboard')">⌂<br>Overview</button>
+<button data-tab="trips" onclick="showTab('trips')">＋<br>Trips</button>
+<button data-tab="costs" onclick="showTab('costs')">↘<br>Costs</button>
+<button data-tab="fleet" onclick="showTab('fleet')">▣<br>Vehicles</button>
+<button data-tab="records" onclick="showTab('records')">☷<br>Records</button>
+</nav>
+<div id="toast"></div>
+<script>
+const KEY='carProfitTracker_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{vehicles:[],trips:[],costs:[],drivers:[]};
+const today=()=>new Date().toLocaleDateString('en-CA');
+['tripDate','costDate','driverDate'].forEach(id=>document.getElementById(id).value=today());
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render();toast('Saved successfully');}
+function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2200)}
+function money(n){return 'KES '+Number(n||0).toLocaleString('en-KE',{minimumFractionDigits:0,maximumFractionDigits:2})}
+function vehicleName(id){return db.vehicles.find(v=>v.id===id)?.name||'Deleted vehicle'}
+function fillVehicles(){
+ const opts=db.vehicles.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+ ['tripVehicle','costVehicle','driverVehicle'].forEach(id=>document.getElementById(id).innerHTML=opts||'<option value="">Add a vehicle first</option>');
+ ['dashVehicle','recordFilter'].forEach(id=>{let el=document.getElementById(id),old=el.value;el.innerHTML='<option value="all">All vehicles</option>'+opts;el.value=[...el.options].some(o=>o.value===old)?old:'all'});
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showTab(id){document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));if(id==='records')renderRecords();if(id==='fleet')renderFleet();window.scrollTo(0,0)}
+function inPeriod(date,p){let d=new Date(date+'T12:00:00'),n=new Date();if(p==='all')return true;if(p==='today')return date===today();if(p==='week'){let start=new Date(n);start.setDate(n.getDate()-((n.getDay()+6)%7));start.setHours(0,0,0,0);return d>=start&&d<=n}if(p==='month')return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth();return true}
+function totals(vehicle='all',period='all'){
+ const match=x=>(vehicle==='all'||x.vehicle===vehicle)&&inPeriod(x.date,period);
+ let trips=db.trips.filter(match),costs=db.costs.filter(match),drivers=db.drivers.filter(x=>(vehicle==='all'||x.vehicle===vehicle)&&inPeriod(x.date,period));
+ let income=trips.reduce((a,x)=>a+ +x.income,0);
+ let tripCosts=trips.reduce((a,x)=>a+(+x.fuel||0)+(+x.other||0),0);
+ let other=costs.reduce((a,x)=>a+ +x.amount,0),driver=drivers.reduce((a,x)=>a+ +x.amount,0);
+ return {income,costs:tripCosts+other+driver,profit:income-tripCosts-other-driver,count:trips.length,tripCosts,other,driver};
+}
+function render(){
+ fillVehicles();let v=document.getElementById('dashVehicle').value||'all',p=document.getElementById('dashPeriod').value||'week',t=totals(v,p);
+ mIncome.textContent=money(t.income);mCosts.textContent=money(t.costs);mProfit.textContent=money(t.profit);mProfit.className='metric '+(t.profit>=0?'positive':'negative');mTrips.textContent=t.count;
+ overview.innerHTML=`<div class="rowitem"><span>Trip fuel & other trip costs</span><b>${money(t.tripCosts)}</b></div><div class="rowitem"><span>Other vehicle expenses</span><b>${money(t.other)}</b></div><div class="rowitem"><span>Weekly driver payments recorded</span><b>${money(t.driver)}</b></div><p class="note">Profit = trip income − trip costs − other expenses − driver payments recorded in the selected period. Driver payments are counted on their payment date.</p>`;
+ let items=[...db.trips.map(x=>({...x,type:'Trip',amount:+x.income,sub:vehicleName(x.vehicle)})),...db.costs.map(x=>({...x,type:x.category,amount:-x.amount,sub:vehicleName(x.vehicle)})),...db.drivers.map(x=>({...x,type:'Driver payment',amount:-x.amount,sub:vehicleName(x.vehicle)}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+ recent.innerHTML=items.length?items.map(itemHTML).join(''):'<div class="empty">No activity yet. Add a vehicle, then record your first trip.</div>';
+ let cargoTrips=db.trips.filter(x=>(v==='all'||x.vehicle===v)&&inPeriod(x.date,p));
+ let cargoGroups={};cargoTrips.forEach(x=>{let k=x.cargo||'Unspecified';if(!cargoGroups[k])cargoGroups[k]={qty:0,unit:x.unit||'Load',trips:0};cargoGroups[k].qty+=(+x.quantity||1);cargoGroups[k].trips++;});
+ let cargoKeys=Object.keys(cargoGroups);
+ cargoSummary.innerHTML=cargoKeys.length?cargoKeys.sort().map(k=>`<div class="rowitem"><span><b>${esc(k)}</b><div class="itemmeta">${cargoGroups[k].trips} trip(s)</div></span><b>${cargoGroups[k].qty.toLocaleString()} ${esc(cargoGroups[k].unit)}${cargoGroups[k].qty===1?'':'s'}</b></div>`).join(''):'No cargo recorded for this period yet.';
+ renderFleet();
+}
+function itemHTML(x){return `<div class="rowitem"><div style="min-width:0"><div class="itemtitle">${esc(x.type)} · ${esc(x.sub||'')}</div><div class="itemmeta">${esc(x.date)} ${x.cargo?'· '+esc(x.cargo)+' ('+(+x.quantity||1)+' '+esc(x.unit||'Load')+')':''} ${x.customer?'· Customer: '+esc(x.customer):''} ${x.site?'· Site: '+esc(x.site):''} ${x.desc?'· '+esc(x.desc):''} ${x.note?'· Notes: '+esc(x.note):''}</div></div><div class="amount ${x.amount>=0?'positive':'negative'}">${x.amount>=0?'+':'−'}${money(Math.abs(x.amount))}</div></div>`}
+document.getElementById('vehicleForm').addEventListener('submit',e=>{e.preventDefault();let name=vehicleNameInput.value;});
+const vehicleNameInput=document.getElementById('vehicleName');
+vehicleForm.addEventListener('submit',e=>{e.preventDefault();let name=vehicleNameInput.value.trim();if(!name)return;db.vehicles.push({id:crypto.randomUUID(),name,details:vehicleDetails.value.trim()});vehicleForm.reset();save()});
+tripForm.addEventListener('submit',e=>{e.preventDefault();if(!db.vehicles.length)return toast('Add a vehicle first');db.trips.push({id:crypto.randomUUID(),vehicle:tripVehicle.value,date:tripDate.value,income:+tripIncome.value,desc:tripDesc.value.trim(),cargo:tripCargo.value,quantity:+tripQuantity.value||1,unit:tripUnit.value,customer:tripCustomer.value.trim(),site:tripSite.value.trim(),fuel:+tripFuel.value||0,other:+tripOther.value||0,km:+tripKm.value||0,note:tripNote.value.trim()});tripForm.reset();tripDate.value=today();tripFuel.value=tripOther.value='0';save()});
+costForm.addEventListener('submit',e=>{e.preventDefault();if(!db.vehicles.length)return toast('Add a vehicle first');db.costs.push({id:crypto.randomUUID(),vehicle:costVehicle.value,date:costDate.value,amount:+costAmount.value,category:costCategory.value,desc:costDesc.value.trim()});costForm.reset();costDate.value=today();save()});
+driverForm.addEventListener('submit',e=>{e.preventDefault();if(!db.vehicles.length)return toast('Add a vehicle first');db.drivers.push({id:crypto.randomUUID(),vehicle:driverVehicle.value,date:driverDate.value,amount:+driverAmount.value,weekStart:weekStart.value,weekEnd:weekEnd.value,note:driverNote.value.trim()});driverForm.reset();driverDate.value=today();save()});
+function renderFleet(){vehicleList.innerHTML=db.vehicles.length?db.vehicles.map(v=>`<div class="rowitem"><div><div class="itemtitle">${esc(v.name)}</div><div class="itemmeta">${esc(v.details||'Vehicle')}</div></div><button class="small danger" onclick="deleteVehicle('${v.id}')">Delete</button></div>`).join(''):'<div class="empty">No vehicles added yet.</div>'}
+function deleteVehicle(id){if(!confirm('Delete this vehicle? Its existing trip and expense records will remain in reports.'))return;db.vehicles=db.vehicles.filter(v=>v.id!==id);save()}
+function renderRecords(){let f=recordFilter.value||'all';let items=[...db.trips.map(x=>({...x,type:'Trip income',amount:+x.income,sub:vehicleName(x.vehicle),desc:x.desc})),...db.costs.map(x=>({...x,type:x.category,amount:-x.amount,sub:vehicleName(x.vehicle)})),...db.drivers.map(x=>({...x,type:'Driver payment',amount:-x.amount,sub:vehicleName(x.vehicle),desc:x.note}))].filter(x=>f==='all'||x.vehicle===f).sort((a,b)=>b.date.localeCompare(a.date));recordList.innerHTML=items.length?items.map(itemHTML).join(''):'<div class="empty">No records found.</div>'}
+function exportCSV(){let rows=[['Type','Date','Vehicle','Description','Cargo / material','Quantity','Unit','Customer','Delivery site','Income KES','Expense KES','Category','Distance km','Notes']];db.trips.forEach(x=>rows.push(['Trip',x.date,vehicleName(x.vehicle),x.desc,x.cargo||'',x.quantity||'',x.unit||'',x.customer||'',x.site||'',x.income,(+x.fuel||0)+(+x.other||0),'Trip costs',x.km,x.note||'']));db.costs.forEach(x=>rows.push(['Expense',x.date,vehicleName(x.vehicle),x.desc,'',x.amount,x.category,'']));db.drivers.forEach(x=>rows.push(['Driver payment',x.date,vehicleName(x.vehicle),x.note,'',x.amount,'Weekly driver payment', '']));download('car-profit-records.csv',rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n'),'text/csv');}
+function backupData(){download('car-profit-backup.json',JSON.stringify(db,null,2),'application/json')}
+function restoreData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.vehicles||!d.trips||!d.costs||!d.drivers)throw Error();if(confirm('Replace all current records with this backup?')){db=d;save();toast('Backup restored')}}catch(_){alert('That backup file is not valid.')} };r.readAsText(f);e.target.value=''}
+function download(name,data,type){let a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type}));a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+dashVehicle.addEventListener('change',render);dashPeriod.addEventListener('change',render);recordFilter.addEventListener('change',renderRecords);
+render();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body></html>
